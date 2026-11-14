@@ -3,6 +3,14 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const WINDOW_SECONDS = 900;
+
 function reply(data, status = 200) {
   return NextResponse.json(data, {
     status,
@@ -16,10 +24,12 @@ function reply(data, status = 200) {
 function config() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!url || !key) throw new Error("SERVER_CONFIG_MISSING");
-
   return { url: url.replace(/\/$/, ""), key };
+}
+
+function hashKey(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 async function dbRequest(path, method = "GET", body, prefer = "") {
@@ -41,7 +51,33 @@ async function dbRequest(path, method = "GET", body, prefer = "") {
     throw new Error(`DATABASE_ERROR_${response.status}`);
   }
 
-  return response.status === 204 ? [] : response.json();
+  if (response.status === 204) return [];
+
+  const text = await response.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function rateAllowed(identifier, limit) {
+  const result = await dbRequest(
+    "rpc/check_cloud_rate_limit",
+    "POST",
+    {
+      p_key_hash: hashKey(identifier),
+      p_limit: limit,
+      p_window_seconds: WINDOW_SECONDS,
+    }
+  );
+
+  return result === true;
+}
+
+function getClientIp(request) {
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "";
+
+  return ip.slice(0, 100);
 }
 
 function validData(settings, entries) {
@@ -49,8 +85,11 @@ function validData(settings, entries) {
     !settings ||
     typeof settings !== "object" ||
     Array.isArray(settings) ||
-    !Array.isArray(entries)
-  ) return false;
+    !Array.isArray(entries) ||
+    entries.length > 10000
+  ) {
+    return false;
+  }
 
   try {
     return (
@@ -64,13 +103,19 @@ function validData(settings, entries) {
 
 export async function POST(request) {
   try {
-    const length = Number(request.headers.get("content-length") || 0);
+    const raw = await request.text();
 
-    if (length > 1200000) {
+    if (Buffer.byteLength(raw, "utf8") > 1200000) {
       return reply({ error: "ডেটার আকার অনেক বড়।" }, 413);
     }
 
-    const body = await request.json().catch(() => null);
+    let body;
+
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return reply({ error: "সঠিক JSON পাঠানো হয়নি।" }, 400);
+    }
 
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return reply({ error: "সঠিক তথ্য পাঠানো হয়নি।" }, 400);
@@ -86,7 +131,19 @@ export async function POST(request) {
       return reply({ error: "অজানা অনুরোধ।" }, 400);
     }
 
-    // UID must already exist in the permanent registry.
+    const uidAllowed = await rateAllowed(`cloud:uid:${uid}`, 8);
+    const ip = getClientIp(request);
+    const ipAllowed = ip
+      ? await rateAllowed(`cloud:ip:${ip}`, 40)
+      : true;
+
+    if (!uidAllowed || !ipAllowed) {
+      return reply(
+        { error: "অনেকবার চেষ্টা হয়েছে। ১৫ মিনিট পরে আবার চেষ্টা করুন।" },
+        429
+      );
+    }
+
     const registered = await dbRequest(
       `uid_registry?uid=eq.${encodeURIComponent(uid)}&select=uid`
     );
@@ -101,7 +158,14 @@ export async function POST(request) {
       );
 
       if (!rows.length) {
-        return reply({ error: "এই UID-তে কোনো Cloud Backup নেই।" }, 404);
+        return reply(
+          { error: "এই UID-তে কোনো Cloud Backup নেই।" },
+          404
+        );
+      }
+
+      if (!validData(rows[0].settings, rows[0].entries)) {
+        return reply({ error: "Cloud Backup ডেটা সঠিক নয়।" }, 500);
       }
 
       return reply({
@@ -136,9 +200,10 @@ export async function POST(request) {
     console.error("Cloud API error:", error.message);
 
     return reply({
-      error: error.message === "SERVER_CONFIG_MISSING"
-        ? "Server configuration missing."
-        : "Cloud service সাময়িকভাবে unavailable।",
+      error:
+        error.message === "SERVER_CONFIG_MISSING"
+          ? "Server configuration missing."
+          : "Cloud service সাময়িকভাবে unavailable।",
     }, 503);
   }
 }
