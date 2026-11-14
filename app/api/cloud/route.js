@@ -1,7 +1,3 @@
-import { NextResponse } from "next/server";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";
@@ -24,7 +20,11 @@ function reply(data, status = 200) {
 function config() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error("SERVER_CONFIG_MISSING");
+
+  if (!url || !key) {
+    throw new Error("SERVER_CONFIG_MISSING");
+  }
+
   return { url: url.replace(/\/$/, ""), key };
 }
 
@@ -53,8 +53,8 @@ async function dbRequest(path, method = "GET", body, prefer = "") {
 
   if (response.status === 204) return [];
 
-  const text = await response.text();
-  return text ? JSON.parse(text) : [];
+  const responseText = await response.text();
+  return responseText ? JSON.parse(responseText) : [];
 }
 
 async function rateAllowed(identifier, limit) {
@@ -139,7 +139,10 @@ export async function POST(request) {
 
     if (!uidAllowed || !ipAllowed) {
       return reply(
-        { error: "অনেকবার চেষ্টা হয়েছে। ১৫ মিনিট পরে আবার চেষ্টা করুন।" },
+        {
+          error:
+            "অনেকবার চেষ্টা হয়েছে। ১৫ মিনিট পরে আবার চেষ্টা করুন।",
+        },
         429
       );
     }
@@ -165,7 +168,10 @@ export async function POST(request) {
       }
 
       if (!validData(rows[0].settings, rows[0].entries)) {
-        return reply({ error: "Cloud Backup ডেটা সঠিক নয়।" }, 500);
+        return reply(
+          { error: "Cloud Backup ডেটা সঠিক নয়।" },
+          500
+        );
       }
 
       return reply({
@@ -199,11 +205,14 @@ export async function POST(request) {
   } catch (error) {
     console.error("Cloud API error:", error.message);
 
-    return reply({
-      error:
-        error.message === "SERVER_CONFIG_MISSING"
-          ? "Server configuration missing."
-          : "Cloud service সাময়িকভাবে unavailable।",
-    }, 503);
+    return reply(
+      {
+        error:
+          error.message === "SERVER_CONFIG_MISSING"
+            ? "Server configuration missing."
+            : "Cloud service সাময়িকভাবে unavailable।",
+      },
+      503
+    );
   }
 }
