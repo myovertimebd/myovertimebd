@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAppContext } from "../AppContext";
+import CloudBackup from "./CloudBackup";
 
 export default function Settings() {
   const { settings, setSettings, entries, importBackupData, clearData, showDialog } = useAppContext();
@@ -203,6 +204,8 @@ export default function Settings() {
           </div>
           <div style={{ marginTop: "10px", color: "#aaa", fontSize: "0.75rem" }}>মোট সংরক্ষিত এন্ট্রি: {entries.length}</div>
         </div>
+
+        <CloudBackup />
 
         {/* Developer Support Section */}
         <div className="section-label" style={{ marginBottom: "10px", color: "var(--primary)", fontWeight: "bold" }}>Developer Support</div>
