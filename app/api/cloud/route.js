@@ -1,22 +1,11 @@
-import { NextResponse } from "next/server";
-import {
-  randomBytes,
-  randomInt,
-  pbkdf2,
-  timingSafeEqual,
-  createHmac,
-} from "node:crypto";
-import { promisify } from "node:util";
 
-const hashPassword = promisify(pbkdf2);
+import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ITERATIONS = 310000;
-const KEY_LENGTH = 32;
 const WINDOW_SECONDS = 900;
-const MAX_BODY_BYTES = 1200000;
 
 function reply(data, status = 200) {
   return NextResponse.json(data, {
@@ -28,7 +17,7 @@ function reply(data, status = 200) {
   });
 }
 
-function getConfig() {
+function config() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -39,8 +28,12 @@ function getConfig() {
   return { url: url.replace(/\/$/, ""), key };
 }
 
-async function dbRequest(path, method = "GET", body) {
-  const { url, key } = getConfig();
+function hashKey(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function dbRequest(path, method = "GET", body, prefer = "") {
+  const { url, key } = config();
 
   const response = await fetch(`${url}/rest/v1/${path}`, {
     method,
@@ -48,46 +41,28 @@ async function dbRequest(path, method = "GET", body) {
       apikey: key,
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
-      Prefer: "return=representation",
+      ...(prefer ? { Prefer: prefer } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: "no-store",
   });
 
   if (!response.ok) {
-    if (response.status === 409) {
-      throw new Error("CONFLICT");
-    }
-    throw new Error("DATABASE_ERROR");
+    throw new Error(`DATABASE_ERROR_${response.status}`);
   }
 
-  return response.status === 204 ? [] : response.json();
+  if (response.status === 204) return [];
+
+  const responseText = await response.text();
+  return responseText ? JSON.parse(responseText) : [];
 }
 
-function getClientIp(request) {
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp.trim().slice(0, 100);
-
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0].trim().slice(0, 100);
-  }
-
-  return "unknown";
-}
-
-async function checkRateLimit(identifier, limit) {
-  const { key } = getConfig();
-
-  const keyHash = createHmac("sha256", key)
-    .update(identifier)
-    .digest("hex");
-
+async function rateAllowed(identifier, limit) {
   const result = await dbRequest(
     "rpc/check_cloud_rate_limit",
     "POST",
     {
-      p_key_hash: keyHash,
+      p_key_hash: hashKey(identifier),
       p_limit: limit,
       p_window_seconds: WINDOW_SECONDS,
     }
@@ -96,26 +71,13 @@ async function checkRateLimit(identifier, limit) {
   return result === true;
 }
 
-async function makeHash(code, salt) {
-  return (
-    await hashPassword(
-      code,
-      Buffer.from(salt, "hex"),
-      ITERATIONS,
-      KEY_LENGTH,
-      "sha256"
-    )
-  ).toString("hex");
-}
+function getClientIp(request) {
+  const ip =
+    request.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "";
 
-async function verifyCode(code, salt, storedHash) {
-  const actual = Buffer.from(await makeHash(code, salt), "hex");
-  const expected = Buffer.from(storedHash, "hex");
-
-  return (
-    actual.length === expected.length &&
-    timingSafeEqual(actual, expected)
-  );
+  return ip.slice(0, 100);
 }
 
 function validData(settings, entries) {
@@ -123,7 +85,8 @@ function validData(settings, entries) {
     !settings ||
     typeof settings !== "object" ||
     Array.isArray(settings) ||
-    !Array.isArray(entries)
+    !Array.isArray(entries) ||
+    entries.length > 10000
   ) {
     return false;
   }
@@ -140,190 +103,116 @@ function validData(settings, entries) {
 
 export async function POST(request) {
   try {
-    const contentLength = Number(
-      request.headers.get("content-length") || 0
-    );
+    const raw = await request.text();
 
-    if (contentLength > MAX_BODY_BYTES) {
-      return reply({ error: "Request is too large." }, 413);
+    if (Buffer.byteLength(raw, "utf8") > 1200000) {
+      return reply({ error: "ডেটার আকার অনেক বড়।" }, 413);
     }
 
-    const contentType = request.headers.get("content-type") || "";
+    let body;
 
-    if (!contentType.toLowerCase().includes("application/json")) {
-      return reply({ error: "JSON content type required." }, 415);
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return reply({ error: "সঠিক JSON পাঠানো হয়নি।" }, 400);
     }
 
-    const body = await request.json();
-
-    if (
-      !body ||
-      typeof body !== "object" ||
-      Array.isArray(body)
-    ) {
-      return reply({ error: "Invalid request." }, 400);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return reply({ error: "সঠিক তথ্য পাঠানো হয়নি।" }, 400);
     }
 
-    const action = body.action;
+    const uid = String(body.uid || "").trim().toUpperCase();
 
-    if (!["create", "sync", "restore"].includes(action)) {
-      return reply({ error: "Unknown action." }, 400);
+    if (!/^[A-Z0-9]{6}$/.test(uid)) {
+      return reply({ error: "৬ অক্ষরের সঠিক UID দিন।" }, 400);
     }
 
+    if (!["sync", "restore"].includes(body.action)) {
+      return reply({ error: "অজানা অনুরোধ।" }, 400);
+    }
+
+    const uidAllowed = await rateAllowed(`cloud:uid:${uid}`, 8);
     const ip = getClientIp(request);
+    const ipAllowed = ip
+      ? await rateAllowed(`cloud:ip:${ip}`, 40)
+      : true;
 
-    // Limit account creation attempts by client IP.
-    if (action === "create") {
-      const allowed = await checkRateLimit(`create:${ip}`, 3);
-
-      if (!allowed) {
-        return reply(
-          { error: "Too many account creation attempts. Try again later." },
-          429
-        );
-      }
-
-      if (!validData(body.settings, body.entries)) {
-        return reply({ error: "Invalid backup data." }, 400);
-      }
-
-      const recoveryCode = randomBytes(16)
-        .toString("hex")
-        .toUpperCase();
-
-      const salt = randomBytes(16).toString("hex");
-      const recoveryHash = await makeHash(recoveryCode, salt);
-
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const uid = String(randomInt(100000, 1000000));
-
-        try {
-          await dbRequest("app_accounts", "POST", {
-            uid,
-            recovery_salt: salt,
-            recovery_hash: recoveryHash,
-            settings: body.settings,
-            entries: body.entries,
-          });
-
-          return reply(
-            {
-              success: true,
-              uid,
-              recoveryCode,
-              message: "Account created. Save your Recovery Code safely.",
-            },
-            201
-          );
-        } catch (error) {
-          if (error.message !== "CONFLICT") throw error;
-        }
-      }
-
+    if (!uidAllowed || !ipAllowed) {
       return reply(
-        { error: "Could not create account. Try again." },
-        503
-      );
-    }
-
-    const uid = String(body.uid || "");
-    const recoveryCode = String(body.recoveryCode || "")
-      .trim()
-      .toUpperCase();
-
-    if (
-      !/^[0-9]{6}$/.test(uid) ||
-      !/^[A-F0-9]{32}$/.test(recoveryCode)
-    ) {
-      return reply(
-        { error: "UID or Recovery Code is incorrect." },
-        401
-      );
-    }
-
-    // Limit attempts by both client IP and account UID.
-    const ipAllowed = await checkRateLimit(`access-ip:${ip}`, 20);
-    const uidAllowed = await checkRateLimit(`access-uid:${uid}`, 8);
-
-    if (!ipAllowed || !uidAllowed) {
-      return reply(
-        { error: "Too many attempts. Try again after 15 minutes." },
+        {
+          error:
+            "অনেকবার চেষ্টা হয়েছে। ১৫ মিনিট পরে আবার চেষ্টা করুন।",
+        },
         429
       );
     }
 
-    const rows = await dbRequest(
-      `app_accounts?uid=eq.${uid}&select=uid,recovery_salt,recovery_hash,settings,entries`
+    const registered = await dbRequest(
+      `uid_registry?uid=eq.${encodeURIComponent(uid)}&select=uid`
     );
 
-    if (!rows.length) {
-      return reply(
-        { error: "UID or Recovery Code is incorrect." },
-        401
-      );
+    if (!registered.length) {
+      return reply({ error: "এই UID নিবন্ধিত নয়।" }, 404);
     }
 
-    const account = rows[0];
-
-    const verified = await verifyCode(
-      recoveryCode,
-      account.recovery_salt,
-      account.recovery_hash
-    );
-
-    if (!verified) {
-      return reply(
-        { error: "UID or Recovery Code is incorrect." },
-        401
+    if (body.action === "restore") {
+      const rows = await dbRequest(
+        `uid_cloud_data?uid=eq.${encodeURIComponent(uid)}&select=settings,entries`
       );
-    }
 
-    if (action === "restore") {
+      if (!rows.length) {
+        return reply(
+          { error: "এই UID-তে কোনো Cloud Backup নেই।" },
+          404
+        );
+      }
+
+      if (!validData(rows[0].settings, rows[0].entries)) {
+        return reply(
+          { error: "Cloud Backup ডেটা সঠিক নয়।" },
+          500
+        );
+      }
+
       return reply({
         success: true,
-        settings: account.settings,
-        entries: account.entries,
+        settings: rows[0].settings,
+        entries: rows[0].entries,
+        message: "ডেটা পুনরুদ্ধার হয়েছে।",
       });
     }
 
     if (!validData(body.settings, body.entries)) {
-      return reply({ error: "Invalid backup data." }, 400);
+      return reply({ error: "Backup ডেটা সঠিক নয়।" }, 400);
     }
 
-    const updated = await dbRequest(
-      `app_accounts?uid=eq.${uid}`,
-      "PATCH",
+    await dbRequest(
+      "uid_cloud_data?on_conflict=uid",
+      "POST",
       {
+        uid,
         settings: body.settings,
         entries: body.entries,
         updated_at: new Date().toISOString(),
-      }
+      },
+      "resolution=merge-duplicates,return=minimal"
     );
-
-    if (!Array.isArray(updated) || updated.length !== 1) {
-      return reply(
-        { error: "Cloud backup could not be updated." },
-        503
-      );
-    }
 
     return reply({
       success: true,
-      message: "Cloud backup updated.",
+      message: "Cloud Backup সফলভাবে আপডেট হয়েছে।",
     });
   } catch (error) {
     console.error("Cloud API error:", error.message);
 
-    if (error.message === "SERVER_CONFIG_MISSING") {
-      return reply(
-        { error: "Cloud service is not configured yet." },
-        503
-      );
-    }
-
     return reply(
-      { error: "Cloud service temporarily unavailable." },
-      500
+      {
+        error:
+          error.message === "SERVER_CONFIG_MISSING"
+            ? "Server configuration missing."
+            : "Cloud service সাময়িকভাবে unavailable।",
+      },
+      503
     );
   }
 }

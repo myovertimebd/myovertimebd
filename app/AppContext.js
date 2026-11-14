@@ -122,8 +122,17 @@ export function AppProvider({ children }) {
 
   const clearData = () => { setSettings(initialSettings); setEntries([]); };
 
+  // Adopt a restored account UID and keep it on this device.
+  const adoptUid = (value) => {
+    const nextUid = String(value || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(nextUid)) return false;
+    localStorage.setItem("my_ot_uid", nextUid);
+    setUid(nextUid);
+    return true;
+  };
+
   return (
-    <AppContext.Provider value={{ settings, setSettings, entries, uid, isLoaded, addEntry, deleteEntry, importBackupData, clearData, showDialog }}>
+    <AppContext.Provider value={{ settings, setSettings, entries, uid, isLoaded, addEntry, deleteEntry, importBackupData, clearData, showDialog, adoptUid }}>
       {children}
       <CustomDialog {...dialog} />
     </AppContext.Provider>
