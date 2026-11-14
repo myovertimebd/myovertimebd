@@ -15,10 +15,17 @@ export const initialSettings = {
 const SETTINGS_KEYS = ["my_ot_settings", "sagor_pro_settings", "settings", "sagor_settings"];
 const ENTRY_KEYS = ["my_ot_entries", "sagor_pro_entries", "entries", "sagor_entries"];
 
+function makeLocalUid() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(6);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => alphabet[value % alphabet.length]).join("");
+}
+
 export function AppProvider({ children }) {
   const [settings, setSettings] = useState(initialSettings);
   const [entries, setEntries] = useState([]);
-  const [uid, setUid] = useState(null); // retained only for legacy local-device compatibility
+  const [uid, setUid] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [dialog, setDialog] = useState({ isOpen: false, title: "", message: "", type: "info", onConfirm: null, onCancel: null });
 
@@ -31,28 +38,66 @@ export function AppProvider({ children }) {
     });
   });
 
-  // Load current and legacy local keys. No cloud calls are made until the new backend is configured.
   useEffect(() => {
-    try {
-      const savedUid = localStorage.getItem("my_ot_uid") || localStorage.getItem("sagor_pro_uid") || localStorage.getItem("uid") || localStorage.getItem("user_id");
-      if (savedUid) { localStorage.setItem("my_ot_uid", savedUid); setUid(savedUid); }
+    let active = true;
 
-      const settingsRaw = SETTINGS_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
-      const entriesRaw = ENTRY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
-      if (settingsRaw) {
-        try { setSettings({ ...initialSettings, ...JSON.parse(settingsRaw) }); }
-        catch { console.warn("Saved settings could not be parsed; keeping defaults."); }
+    async function loadApp() {
+      try {
+        const savedUid =
+          localStorage.getItem("my_ot_uid") ||
+          localStorage.getItem("sagor_pro_uid") ||
+          localStorage.getItem("uid") ||
+          localStorage.getItem("user_id");
+
+        const settingsRaw = SETTINGS_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+        const entriesRaw = ENTRY_KEYS.map((key) => localStorage.getItem(key)).find(Boolean);
+
+        if (settingsRaw) {
+          try { setSettings({ ...initialSettings, ...JSON.parse(settingsRaw) }); }
+          catch { console.warn("Saved settings could not be parsed; keeping defaults."); }
+        }
+
+        if (entriesRaw) {
+          try {
+            const parsed = JSON.parse(entriesRaw);
+            if (Array.isArray(parsed)) setEntries(parsed);
+          } catch { console.warn("Saved entries could not be parsed; keeping an empty list."); }
+        }
+
+        let permanentUid = savedUid && /^[A-Z0-9]{6}$/i.test(savedUid)
+          ? savedUid.toUpperCase()
+          : null;
+
+        try {
+          const response = await fetch("/api/uid", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(permanentUid ? { uid: permanentUid } : {}),
+            cache: "no-store",
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "UID service unavailable");
+          permanentUid = result.uid;
+        } catch (error) {
+          console.warn("UID server registration pending:", error.message);
+          if (!permanentUid) permanentUid = makeLocalUid();
+        }
+
+        if (active && permanentUid) {
+          localStorage.setItem("my_ot_uid", permanentUid);
+          setUid(permanentUid);
+        }
+      } catch (error) {
+        console.error("Local data load failed:", error);
+      } finally {
+        if (active) setIsLoaded(true);
       }
-      if (entriesRaw) {
-        try { const parsed = JSON.parse(entriesRaw); if (Array.isArray(parsed)) setEntries(parsed); }
-        catch { console.warn("Saved entries could not be parsed; keeping an empty list."); }
-      }
-    } catch (error) {
-      console.error("Local data load failed:", error);
-    } finally { setIsLoaded(true); }
+    }
+
+    loadApp();
+    return () => { active = false; };
   }, []);
 
-  // Local-first persistence: settings and entries remain available offline.
   useEffect(() => {
     if (!isLoaded) return;
     try {
@@ -65,15 +110,16 @@ export function AppProvider({ children }) {
 
   const addEntry = (entry) => setEntries((prev) => [...prev, entry]);
   const deleteEntry = (id) => setEntries((prev) => prev.filter((entry) => entry.id !== id));
+
   const importBackupData = (data) => {
     if (!data || data.app !== "My Overtime" || !data.settings || !Array.isArray(data.entries)) {
       return { success: false, message: "ব্যাকআপ ফাইলটি সঠিক নয়।" };
     }
-    const mergedSettings = { ...initialSettings, ...data.settings };
-    setSettings(mergedSettings);
+    setSettings({ ...initialSettings, ...data.settings });
     setEntries(data.entries);
     return { success: true, message: "ডেটা পুনরুদ্ধার হয়েছে।" };
   };
+
   const clearData = () => { setSettings(initialSettings); setEntries([]); };
 
   return (
