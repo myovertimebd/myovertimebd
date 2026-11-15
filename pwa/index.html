@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827"><meta name="description" content="My Overtime BD — কাজ, বেতন, ওভারটাইম ও সঞ্চয়ের হিসাব">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./styles.css"><title>My Overtime BD</title>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><img src="./assets/icon.svg" alt=""><div><b>My Overtime BD</b><small>Your Work. Your Money. Your Future.</small></div></div>
+  <nav id="navigation">
+    <button class="nav active" data-page="dashboard">⌂ <span>ড্যাশবোর্ড</span></button>
+    <button class="nav" data-page="salary">৳ <span>বেতন ও OT ক্যালকুলেটর</span></button>
+    <button class="nav" data-page="work">▤ <span>কাজের হিসাব</span></button>
+    <button class="nav" data-page="money">⇄ <span>আয়-ব্যয়</span></button>
+    <button class="nav" data-page="goals">◎ <span>সঞ্চয়ের লক্ষ্য</span></button>
+    <button class="nav" data-page="calendar">▦ <span>ক্যালেন্ডার</span></button>
+    <button class="nav" data-page="reports">▥ <span>রিপোর্ট</span></button>
+    <button class="nav" data-page="settings">⚙ <span>সেটিংস ও ব্যাকআপ</span></button>
+  </nav>
+  <div class="sidebar-foot"><span class="dot"></span> <span id="connectionText">ডিভাইসে সংরক্ষিত</span></div>
+</aside>
+<main class="main">
+<header class="topbar"><button id="menuBtn" class="icon-btn" aria-label="মেনু">☰</button><div><small id="todayText"></small><h1 id="pageTitle">ড্যাশবোর্ড</h1></div><button id="installBtn" class="btn subtle hidden">ইনস্টল</button></header>
+<div id="notice" class="notice hidden" role="status"></div>
+<section class="page active" id="page-dashboard">
+  <div class="welcome"><div><p class="eyebrow">MY OVERTIME BD</p><h2 id="welcomeName">আপনার কাজের হিসাব, এক জায়গায়</h2><p>প্রতিদিনের কাজ, বেতন, OT ও সঞ্চয় সহজে পরিচালনা করুন।</p></div><div class="welcome-icon">৳</div></div>
+  <div class="stats-grid">
+    <article class="stat"><small>এই মাসের আনুমানিক বেতন</small><strong id="dashSalary">৳০</strong><span>সেটিংসের বেতন ও OT অনুযায়ী</span></article>
+    <article class="stat"><small>এই মাসের OT</small><strong id="dashOT">০ ঘণ্টা</strong><span id="dashWorkDays">০ দিনের রেকর্ড</span></article>
+    <article class="stat"><small>এই মাসের আয়</small><strong id="dashIncome">৳০</strong><span>আয়-ব্যয়ের খাতা</span></article>
+    <article class="stat"><small>এই মাসের ব্যয়</small><strong id="dashExpense">৳০</strong><span>আয়-ব্যয়ের খাতা</span></article>
+  </div>
+  <div class="grid-two"><article class="panel"><div class="panel-head"><h3>সাম্প্রতিক কাজ</h3><button class="text-btn" data-go="work">সব দেখুন →</button></div><div id="recentWork" class="empty">এখনো কোনো কাজের রেকর্ড নেই।</div></article>
+  <article class="panel"><div class="panel-head"><h3>সঞ্চয়ের অগ্রগতি</h3><button class="text-btn" data-go="goals">লক্ষ্য দেখুন →</button></div><div id="recentGoals" class="empty">কোনো সঞ্চয়ের লক্ষ্য নেই।</div></article></div>
+  <div class="quick-actions"><button class="btn primary" data-go="work">＋ কাজ যোগ করুন</button><button class="btn" data-go="salary">বেতন হিসাব করুন</button><button class="btn" data-go="money">আয়/ব্যয় যোগ করুন</button></div>
+</section>
+<section class="page" id="page-salary">
+ <div class="section-intro"><h2>বেতন ও ওভারটাইম ক্যালকুলেটর</h2><p>আপনার প্রতিষ্ঠানের নিয়ম অনুযায়ী Basic, মাসিক ঘণ্টা ও OT গুণক নির্ধারণ করুন।</p></div>
+ <div class="grid-two"><article class="panel form-grid">
+  <label>মাসিক Gross Salary (৳)<input id="gross" type="number" min="0" step="0.01"></label>
+  <label>Basic Salary (৳)<input id="basic" type="number" min="0" step="0.01"></label>
+  <label>মাসিক কর্মঘণ্টা<input id="divisor" type="number" min="1" step="1"></label>
+  <label>OT গুণক (যেমন ২)<input id="multiplier" type="number" min="0" step="0.1"></label>
+  <label>মোট OT ঘণ্টা<input id="otHours" type="number" min="0" step="0.5" value="0"></label>
+  <label>অন্যান্য ভাতা (৳)<input id="allowance" type="number" min="0" step="0.01" value="0"></label>
+  <label>বোনাস (৳)<input id="bonus" type="number" min="0" step="0.01" value="0"></label>
+  <label>কর্তন (৳)<input id="deductions" type="number" min="0" step="0.01" value="0"></label>
+  <button id="calcSalary" class="btn primary full">হিসাব করুন</button>
+ </article><article class="panel result-panel"><p class="eyebrow">ESTIMATED TAKE-HOME</p><h2 id="salaryTotal">৳০</h2><div class="result-line"><span>প্রতি ঘণ্টার OT রেট</span><b id="hourRate">৳০</b></div><div class="result-line"><span>OT আয়</span><b id="otPay">৳০</b></div><div class="result-line"><span>Gross Salary</span><b id="grossOut">৳০</b></div><div class="result-line"><span>ভাতা + বোনাস</span><b id="extraOut">৳০</b></div><div class="result-line"><span>কর্তন</span><b id="deductOut">৳০</b></div><button id="printSalary" class="btn full">প্রিন্ট / PDF</button><p class="hint">এটি আনুমানিক হিসাব। আপনার প্রতিষ্ঠানের অনুমোদিত Payroll Rule যাচাই করুন।</p></article></div>
+ <article class="panel"><div class="panel-head"><h3>ভবিষ্যৎ বেতন সিমুলেটর</h3></div><div class="form-grid compact"><label>প্রতিদিন OT ঘণ্টা<input id="simDaily" type="number" min="0" max="24" step=".5" value="2"></label><label>মাসে কাজের দিন<input id="simDays" type="number" min="0" max="31" value="26"></label><button class="btn" id="simulate">সিমুলেশন</button><strong id="simResult">—</strong></div></article>
+</section>
+<section class="page" id="page-work">
+ <div class="section-intro"><h2>দৈনিক কাজের হিসাব</h2><p>কাজের দিন, ছুটি ও OT ঘণ্টা সংরক্ষণ করুন।</p></div>
+ <article class="panel"><form id="workForm" class="form-grid compact">
+  <label>তারিখ<input id="workDate" type="date" required></label><label>ধরন<select id="workType"><option value="work">নিয়মিত কাজ</option><option value="holiday">ছুটির দিনে কাজ</option><option value="leave">ছুটি</option><option value="absent">অনুপস্থিত</option></select></label>
+  <label>কাজের ঘণ্টা<input id="workHours" type="number" min="0" max="24" step=".5" value="8"></label><label>OT ঘণ্টা<input id="workOT" type="number" min="0" max="24" step=".5" value="0"></label>
+  <label class="wide">নোট<input id="workNote" maxlength="160" placeholder="ঐচ্ছিক নোট"></label><button class="btn primary">রেকর্ড সংরক্ষণ</button>
+ </form></article>
+ <article class="panel"><div class="panel-head"><h3>কাজের রেকর্ড</h3><input id="workSearch" class="search" placeholder="তারিখ/নোট খুঁজুন"></div><div class="table-wrap"><table><thead><tr><th>তারিখ</th><th>ধরন</th><th>ঘণ্টা</th><th>OT</th><th>নোট</th><th></th></tr></thead><tbody id="workRows"></tbody></table></div></article>
+</section>
+<section class="page" id="page-money">
+ <div class="section-intro"><h2>আয় ও ব্যয়ের হিসাব</h2><p>ব্যক্তিগত আয়-ব্যয় আলাদাভাবে ট্র্যাক করুন।</p></div>
+ <div class="stats-grid three"><article class="stat"><small>মোট আয়</small><strong id="moneyIn">৳০</strong></article><article class="stat"><small>মোট ব্যয়</small><strong id="moneyOut">৳০</strong></article><article class="stat"><small>ব্যালেন্স</small><strong id="moneyBalance">৳০</strong></article></div>
+ <article class="panel"><form id="moneyForm" class="form-grid compact"><label>ধরন<select id="moneyType"><option value="income">আয়</option><option value="expense">ব্যয়</option></select></label><label>পরিমাণ (৳)<input id="moneyAmount" type="number" min=".01" step=".01" required></label><label>তারিখ<input id="moneyDate" type="date" required></label><label>ক্যাটাগরি<input id="moneyCategory" maxlength="50" required placeholder="যেমন বাজার, বেতন"></label><label class="wide">নোট<input id="moneyNote" maxlength="160"></label><button class="btn primary">সংরক্ষণ</button></form></article>
+ <article class="panel"><div class="panel-head"><h3>লেনদেন</h3><select id="moneyFilter"><option value="all">সব</option><option value="income">আয়</option><option value="expense">ব্যয়</option></select></div><div class="table-wrap"><table><thead><tr><th>তারিখ</th><th>ধরন</th><th>ক্যাটাগরি</th><th>পরিমাণ</th><th></th></tr></thead><tbody id="moneyRows"></tbody></table></div></article>
+</section>
+<section class="page" id="page-goals"><div class="section-intro"><h2>সঞ্চয়ের লক্ষ্য</h2><p>লক্ষ্য নির্ধারণ করুন এবং জমার অগ্রগতি দেখুন।</p></div>
+ <article class="panel"><form id="goalForm" class="form-grid compact"><label>লক্ষ্যের নাম<input id="goalName" maxlength="60" required></label><label>লক্ষ্য টাকা<input id="goalTarget" type="number" min="1" required></label><label>এখন জমা<input id="goalSaved" type="number" min="0" value="0"></label><label>লক্ষ্য তারিখ<input id="goalDate" type="date"></label><button class="btn primary">লক্ষ্য যোগ করুন</button></form></article><div id="goalCards" class="goal-grid"></div>
+</section>
+<section class="page" id="page-calendar"><div class="section-intro"><h2>কাজের ক্যালেন্ডার</h2><p>তারিখ অনুযায়ী কাজ ও OT রেকর্ড দেখুন।</p></div><article class="panel"><div class="panel-head"><button id="prevMonth" class="btn">←</button><h3 id="calendarTitle"></h3><button id="nextMonth" class="btn">→</button></div><div class="calendar" id="calendar"></div><div class="legend"><span>● কাজ</span><span>● OT</span><span>● ছুটি</span></div></article></section>
+<section class="page" id="page-reports"><div class="section-intro"><h2>মাসিক রিপোর্ট</h2><p>নির্বাচিত মাসের কাজ, OT ও আর্থিক সারাংশ।</p></div><article class="panel"><label>মাস নির্বাচন<input id="reportMonth" type="month"></label><div id="reportSummary" class="report-grid"></div><div class="quick-actions"><button id="exportCSV" class="btn">কাজ CSV Export</button><button id="printReport" class="btn">রিপোর্ট প্রিন্ট / PDF</button></div></article></section>
+<section class="page" id="page-settings"><div class="section-intro"><h2>সেটিংস ও ডেটা</h2><p>প্রোফাইল, বেতন নিয়ম ও ব্যাকআপ পরিচালনা করুন।</p></div><article class="panel"><form id="settingsForm" class="form-grid compact"><label>নাম<input id="profileName" maxlength="60"></label><label>পদবি/কাজ<input id="profileJob" maxlength="60"></label><label>Gross Salary<input id="setGross" type="number" min="0"></label><label>Basic Salary<input id="setBasic" type="number" min="0"></label><label>মাসিক ঘণ্টা<input id="setDivisor" type="number" min="1"></label><label>OT গুণক<input id="setMultiplier" type="number" min="0" step=".1"></label><button class="btn primary">সেটিংস সংরক্ষণ</button></form></article>
+ <article class="panel"><h3>ব্যাকআপ ও Restore</h3><p class="hint">ডেটা এই ডিভাইসের ব্রাউজারে থাকে। ফোন বদলালে আগে JSON Backup নিন।</p><div class="quick-actions"><button id="backupBtn" class="btn">JSON Backup ডাউনলোড</button><label class="btn file-btn">Backup Restore<input id="restoreFile" type="file" accept=".json,application/json" hidden></label><button id="clearBtn" class="btn danger">সব লোকাল ডেটা মুছুন</button></div></article>
+ <article class="panel"><h3>অ্যাপের অবস্থা</h3><p id="storageStatus" class="hint"></p><p class="hint">এই সংস্করণে Login, Cloud Sync বা server backup নেই। নিরাপদ Account/Cloud সেবা যুক্ত করার আগে আলাদা Supabase schema ও authentication পরীক্ষা প্রয়োজন।</p></article>
+</section>
+<footer>My Overtime BD · Local-first PWA · <span id="year"></span></footer>
+</main></div>
+<div id="toast" class="toast" role="status"></div>
+<script type="module" src="./src/app.js"></script>
+</body></html>

@@ -1,0 +1,19 @@
+{
+  "name": "My Overtime BD",
+  "short_name": "My Overtime",
+  "description": "কাজ, বেতন, ওভারটাইম ও সঞ্চয়ের হিসাব",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c1422",
+  "theme_color": "#101827",
+  "lang": "bn",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
