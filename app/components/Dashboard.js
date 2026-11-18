@@ -1,7 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useAppContext } from "../AppContext";
+
+// Render only the legacy <b> markers as React elements; never interpret remote HTML.
+function renderInlineBold(value) {
+  return String(value || "").split(/(<b>|<\/b>)/g).reduce((parts, token) => {
+    if (token === "<b>") parts.push({ type: "open" });
+    else if (token === "</b>") parts.push({ type: "close" });
+    else if (token) parts.push({ type: "text", value: token });
+    return parts;
+  }, []).reduce((nodes, part, index, parts) => {
+    if (part.type !== "text") return nodes;
+    const isBold = parts.slice(0, index).filter((item) => item.type === "open").length > parts.slice(0, index).filter((item) => item.type === "close").length;
+    nodes.push(isBold ? <b key={index}>{part.value}</b> : part.value);
+    return nodes;
+  }, []);
+}
 
 export default function Dashboard({ setActiveTab, setShareModal }) {
   const { settings, entries, addEntry, showDialog } = useAppContext();
@@ -21,41 +36,48 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
   // Savings Goal Tracker State
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const [actualSavings, setActualSavings] = useState(0);
+  const savingsStorageKey = `my_ot_actual_savings_${currentYear}_${currentMonth}`;
+  const actualSavings = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") return () => {};
+      window.addEventListener("my_ot_savings_changed", callback);
+      return () => window.removeEventListener("my_ot_savings_changed", callback);
+    },
+    () => {
+      if (typeof window === "undefined") return 0;
+      return Number(localStorage.getItem(savingsStorageKey)) || 0;
+    },
+    () => 0
+  );
 
-  // Shift Planner State
-  const [shifts, setShifts] = useState({});
+  // Shift Planner State — subscribe to existing localStorage data
+  const shiftsStorageKey = "my_ot_weekly_shifts";
+  const shiftsSnapshot = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") return () => {};
+      window.addEventListener("my_ot_shifts_changed", callback);
+      return () => window.removeEventListener("my_ot_shifts_changed", callback);
+    },
+    () => {
+      if (typeof window === "undefined") return "{}";
+      return localStorage.getItem(shiftsStorageKey) || "{}";
+    },
+    () => "{}"
+  );
+  let shifts = {};
+  try {
+    const parsed = JSON.parse(shiftsSnapshot);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) shifts = parsed;
+  } catch {}
 
   // Collapsible settings & campaign banner states
   const [showSavingsAndShift, setShowSavingsAndShift] = useState(false);
   const [campaignNotice, setCampaignNotice] = useState("");
-  const [quickAddCooldown, setQuickAddCooldown] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedSavings = localStorage.getItem(`my_ot_actual_savings_${currentYear}_${currentMonth}`);
-      if (savedSavings) {
-        setActualSavings(parseFloat(savedSavings) || 0);
-      }
-      
-      const savedShifts = localStorage.getItem("my_ot_weekly_shifts");
-      if (savedShifts) {
-        try {
-          setShifts(JSON.parse(savedShifts));
-        } catch (e) {}
-      }
-
-      // Clear any stale cooldown on mount
-      localStorage.removeItem("last_quick_add");
-      setQuickAddCooldown(false);
-    }
-  }, [currentYear, currentMonth]);
-
-  // hasEntryToday controls quick button visibility — no separate cooldown needed
+// hasEntryToday controls quick button visibility — no separate cooldown needed
 
   const handleSavingsChange = (val) => {
-    setActualSavings(val);
-    localStorage.setItem(`my_ot_actual_savings_${currentYear}_${currentMonth}`, val);
+    localStorage.setItem(savingsStorageKey, String(Number(val) || 0));
+    window.dispatchEvent(new Event("my_ot_savings_changed"));
   };
 
   const toggleShift = (dateStr) => {
@@ -63,29 +85,28 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
     const nextMap = { Day: "Night", Night: "Off", Off: "Day" };
     const nextVal = nextMap[current];
     const newShifts = { ...shifts, [dateStr]: nextVal };
-    setShifts(newShifts);
-    localStorage.setItem("my_ot_weekly_shifts", JSON.stringify(newShifts));
+    localStorage.setItem(shiftsStorageKey, JSON.stringify(newShifts));
+    window.dispatchEvent(new Event("my_ot_shifts_changed"));
   };
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const updateClock = () => {
       const now = new Date();
-      setTime(
-        now.toLocaleTimeString("en-US", {
-          hour12: true,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        })
-      );
-      setDate(
-        now.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "short",
-          day: "numeric",
-        })
-      );
-    }, 1000);
+      setTime(now.toLocaleTimeString("en-US", {
+        hour12: true,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }));
+      setDate(now.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      }));
+    };
+
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
 
     // Fetch Weather (Dhaka coords, with extended variables)
     fetch(
@@ -206,7 +227,8 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
 
   const fixedMonthly = (parseFloat(settings.gross) || 0) + (parseFloat(settings.bonus) || 0);
   const grandTotal = fixedMonthly + otEarnings + tiffinAmount + nightAmount;
-  const currentDateStr = new Date().toISOString().split("T")[0];
+  const today = new Date();
+  const currentDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const hasEntryToday = entries.some((e) => e.date === currentDateStr);
 
   const handleQuickAdd = async (hours) => {
@@ -219,7 +241,7 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
     const isFridayOrHoliday = !!holidays2026[holKey];
 
     const newEntry = {
-      id: Date.now().toString(),
+      id: `${currentDateStr}-${entries.length + 1}`,
       date: currentDateStr,
       type: "work",
       ot: hours,
@@ -328,7 +350,7 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
       weekDays.push({
         name: dayNames[i],
         engName: engDayNames[i],
-        dateStr: d.toISOString().split("T")[0],
+        dateStr: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
         displayDate: d.getDate(),
       });
     }
@@ -394,7 +416,7 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
           }}></div>
           <div style={{ flex: 1, fontSize: "0.85rem", color: "#fff", fontWeight: "600", lineHeight: "1.4" }}>
             <span style={{ color: "#ff4b4b", fontWeight: "800", marginRight: "6px" }}>[ঘোষণা]</span>
-            {campaignNotice}
+            {renderInlineBold(campaignNotice)}
           </div>
           <button 
             onClick={() => setCampaignNotice("")} 
@@ -456,7 +478,7 @@ export default function Dashboard({ setActiveTab, setShareModal }) {
         border: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: "10px"
       }}>
         <i className="ri-notification-3-line" style={{ color: "#ffd500" }}></i>
-        <marquee style={{ fontSize: "0.85rem", color: "#eee", fontWeight: "500" }} dangerouslySetInnerHTML={{ __html: countdownText }}></marquee>
+        <marquee style={{ fontSize: "0.85rem", color: "#eee", fontWeight: "500" }}>{renderInlineBold(countdownText)}</marquee>
       </div>
 
       <div className="clock-card glass-card" style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(20px)" }}>

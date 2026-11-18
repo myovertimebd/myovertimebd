@@ -14,7 +14,8 @@ import ShareModal from "./components/ShareModal";
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showSplash, setShowSplash] = useState(true);
-  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [historyMonth, setHistoryMonth] = useState(currentMonth);
   const [showShareModal, setShowShareModal] = useState(false);
 

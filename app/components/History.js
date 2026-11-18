@@ -15,7 +15,8 @@ const holidays2026 = {
 
 export default function History({ initialMonth }) {
   const { entries, deleteEntry, settings, showDialog } = useAppContext();
-  const currentMonthStr = new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [selectedMonth, setSelectedMonth] = useState(initialMonth || currentMonthStr);
   const [previousInitialMonth, setPreviousInitialMonth] = useState(initialMonth);
 
@@ -54,7 +55,8 @@ export default function History({ initialMonth }) {
   // Build available months from entries
   const monthOptions = useMemo(() => {
     const set = new Set();
-    const now = new Date().toISOString().slice(0, 7);
+    const current = new Date();
+    const now = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, "0")}`;
     set.add(now); // Always include current month
     entries.forEach((e) => {
       if (!e.date) return;

@@ -761,7 +761,7 @@ export default function AdminPanel() {
                 </div>
                 {currentNotice ? (
                   <div>
-                    <div dangerouslySetInnerHTML={{__html: currentNotice}} style={{fontSize:"0.9rem", color:"#fff", lineHeight: "1.4", marginBottom: "12px"}} />
+                    <div style={{fontSize:"0.9rem", color:"#fff", lineHeight: "1.4", marginBottom: "12px", whiteSpace:"pre-wrap", overflowWrap:"anywhere"}}>{currentNotice}</div>
                     <button className="btn btn-d" style={{padding: "6px 12px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "5px"}} onClick={() => sendNotice("", 0)}>
                       <i className="ri-close-circle-line"></i> নোটিশটি মুছে ফেলুন (Delete Notice)
                     </button>
@@ -801,8 +801,8 @@ export default function AdminPanel() {
               {/* Live Preview of Input */}
               {adMsg && (
                 <div style={{background:"rgba(255, 255, 255, 0.02)", border:"1px dashed rgba(255,255,255,0.2)", borderRadius:"8px", padding:"10px", marginBottom:"12px"}}>
-                  <div style={{fontSize: "0.7rem", color: "var(--secondary)", marginBottom: "4px"}}>টাইপিং প্রিভিউ (HTML সমর্থিত):</div>
-                  <div dangerouslySetInnerHTML={{__html: adMsg}} style={{fontSize: "0.85rem", color: "#fff", wordBreak: "break-word"}} />
+                  <div style={{fontSize: "0.7rem", color: "var(--secondary)", marginBottom: "4px"}}>টাইপিং প্রিভিউ (সাধারণ টেক্সট):</div>
+                  <div style={{fontSize: "0.85rem", color: "#fff", whiteSpace:"pre-wrap", overflowWrap:"anywhere"}}>{adMsg}</div>
                 </div>
               )}
 
