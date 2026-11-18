@@ -192,7 +192,7 @@ function SettingsForm({ context }) {
 
         <div className="glass-card p-3" style={{ background: "rgba(0, 70, 255, 0.1)", border: "1px solid rgba(0, 100, 255, 0.3)", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
           <div style={{ color: "#4a9eff", marginBottom: "10px", fontWeight: "bold" }}><i className="ri-shield-check-line"></i> Data Backup & Restore</div>
-          <p style={{ fontSize: "0.82rem", color: "#ccc", marginBottom: "12px", lineHeight: 1.6 }}>ডেটা এই ডিভাইসে Local Storage-এ থাকে। নিরাপত্তার জন্য নিয়মিত JSON Backup ডাউনলোড করে রাখুন। Email OTP দিয়ে লগইন করার পর নিচের Cloud Backup অংশ থেকে নিজের অ্যাকাউন্টে ডেটা আপলোড বা Restore করতে পারবেন।</p>
+          <p style={{ fontSize: "0.82rem", color: "#ccc", marginBottom: "12px", lineHeight: 1.6 }}>আপনার ডেটার একটি কপি সংরক্ষণ বা পুনরুদ্ধার করুন।</p>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button type="button" onClick={handleExportBackup} style={{ flex: 1, minWidth: "130px", background: "#2563eb", color: "#fff", border: 0, padding: "11px", borderRadius: "8px", fontWeight: 700 }}>ডেটা Backup</button>
             <label style={{ flex: 1, minWidth: "130px", textAlign: "center", background: "#333", color: "#fff", padding: "11px", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Backup Restore<input type="file" accept="application/json,.json" onChange={handleImportBackup} style={{ display: "none" }} /></label>
@@ -201,18 +201,6 @@ function SettingsForm({ context }) {
         </div>
 
         <CloudBackup />
-
-        {/* Developer Support Section */}
-        <div className="section-label" style={{ marginBottom: "10px", color: "var(--primary)", fontWeight: "bold" }}>Developer Support</div>
-        <div className="glass-card" style={{ padding: "18px", background: "rgba(0,0,0,0.5)", border: "1px solid #333", borderRadius: "10px", marginBottom: "30px" }}>
-          <p style={{ fontSize: "0.85rem", color: "#ccc", marginBottom: "15px", lineHeight: "1.6" }}>
-            অ্যাপটি নিয়ে আপনাদের যেকোনো পরামর্শ বা মতামত থাকলে, অথবা কোনো সমস্যা হলে আমাদের ইমেইল করে জানান।
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <i className="ri-information-line" style={{ color: "var(--primary)", fontSize: "1.2rem" }}></i>
-            <span style={{ color: "#fff", fontWeight: "bold" }}>Support contact will be added before public launch.</span>
-          </div>
-        </div>
 
         <button type="button" className="btn-primary" onClick={handleSave} style={{ width: "100%", padding: "15px", background: "linear-gradient(135deg, var(--primary), var(--secondary))", color: "#fff", border: "none", cursor: "pointer", borderRadius: "10px", fontWeight: "bold", textTransform: "uppercase" }}>
           Save Configuration

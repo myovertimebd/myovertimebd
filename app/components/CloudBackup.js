@@ -81,13 +81,13 @@ export default function CloudBackup() {
     setBusy(true);
     setStatus("");
     try {
-      const [{ data: settingRows, error: settingsError }, { data: entryRows, error: entriesError }] = await Promise.all([
+      const [{ data: settingRows, error: settingsError }, { count: entriesCount, error: entriesError }] = await Promise.all([
         supabase.from("user_settings").select("settings").eq("user_id", user.id).maybeSingle(),
-        supabase.from("overtime_entries").select("id", { count: "exact" }).eq("user_id", user.id),
+        supabase.from("overtime_entries").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
       if (settingsError) throw settingsError;
       if (entriesError) throw entriesError;
-      setCloudSummary({ hasSettings: Boolean(settingRows), entriesCount: entryRows?.length || 0 });
+      setCloudSummary({ hasSettings: Boolean(settingRows), entriesCount: entriesCount ?? 0 });
       setStatus("Cloud Backup-এর অবস্থা পাওয়া গেছে।");
     } catch (error) {
       setStatus(`Cloud পরীক্ষা করা যায়নি: ${error.message}`);
