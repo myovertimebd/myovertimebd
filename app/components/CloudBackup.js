@@ -7,9 +7,9 @@ import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 const cardStyle = {
   background: "rgba(0,120,100,0.10)",
   border: "1px solid rgba(0,180,140,0.35)",
-  padding: "16px",
-  borderRadius: "12px",
-  marginBottom: "22px",
+  padding: "15px",
+  borderRadius: "18px",
+  marginBottom: "18px",
 };
 const buttonStyle = {
   border: 0, borderRadius: "8px", padding: "11px 14px",
@@ -224,7 +224,13 @@ export default function CloudBackup() {
 
   return (
     <div className="glass-card" style={cardStyle}>
-      <div style={{ color: "#45d6ad", fontWeight: "bold", marginBottom: "8px" }}>☁️ Email Account & Cloud Backup</div>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", paddingBottom: "12px", borderBottom: "1px solid rgba(0,243,255,0.18)" }}>
+        <span style={{ fontSize: "1.35rem" }}>☁️</span>
+        <div>
+          <div style={{ color: "var(--primary)", fontWeight: 800, fontSize: "1rem" }}>Email Account & Cloud Backup</div>
+          <div style={{ color: "#999", fontSize: "0.72rem", marginTop: "3px" }}>Secure personal cloud storage</div>
+        </div>
+      </div>
       {!supabase ? (
         <p style={{ color: "#ffcc80", fontSize: "0.85rem", lineHeight: 1.6 }}>
           Supabase সংযোগের Environment Variables পাওয়া যায়নি। NEXT_PUBLIC_SUPABASE_URL এবং NEXT_PUBLIC_SUPABASE_ANON_KEY সেট করতে হবে।
@@ -247,26 +253,45 @@ export default function CloudBackup() {
         </>
       ) : (
         <>
-          <p style={{ color: "#d5f5e9", fontSize: "0.85rem", overflowWrap: "anywhere" }}>Logged in: <strong>{user.email}</strong></p>
-          <p style={{ color: "#bbb", fontSize: "0.78rem" }}>Cloud Backup শুধু এই Email Account-এর জন্য। অন্য ব্যবহারকারীর ডেটা RLS দ্বারা আলাদা রাখা হয়।</p>
-          {cloudSummary && <p style={{ color: "#9fe8cb", fontSize: "0.8rem" }}>Cloud-এ Entry: {cloudSummary.entriesCount} · Settings: {cloudSummary.hasSettings ? "আছে" : "নেই"}</p>}
-          <div style={{ display: "grid", gap: "9px" }}>
-            <button type="button" disabled={busy || !isLoaded} onClick={uploadLocalData} style={buttonStyle}>এই ডিভাইসের ডেটা Cloud-এ Backup</button>
-            <button type="button" disabled={busy} onClick={restoreCloudData} style={{ ...buttonStyle, background: "#315b9b" }}>Cloud Backup থেকে Restore</button>
-            <button type="button" disabled={busy} onClick={refreshCloudSummary} style={{ ...buttonStyle, background: "#444" }}>Cloud Status Refresh</button>
-            <button type="button" disabled={busy} onClick={signOut} style={{ ...buttonStyle, background: "#633333" }}>Logout</button>
+          <div style={{ padding: "12px", borderRadius: "12px", background: "rgba(0,243,255,0.055)", border: "1px solid rgba(0,243,255,0.16)", marginBottom: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span style={{ color: "#75e8c4", fontSize: "0.72rem", fontWeight: 700 }}>● ACCOUNT CONNECTED</span>
+              <button type="button" disabled={busy} onClick={signOut} style={{ ...buttonStyle, background: "rgba(180,65,65,0.8)", padding: "6px 10px", fontSize: "0.72rem" }}>Logout</button>
+            </div>
+            <div style={{ color: "#fff", fontSize: "0.88rem", fontWeight: 700, overflowWrap: "anywhere", marginTop: "8px" }}>{user.email}</div>
+            <div style={{ color: "#999", fontSize: "0.72rem", marginTop: "4px" }}>আপনার ব্যক্তিগত Cloud Account</div>
+          </div>
+          {cloudSummary && <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "9px", marginBottom: "12px" }}>
+            <div style={{ padding: "11px", borderRadius: "10px", background: "rgba(0,243,255,0.06)", border: "1px solid rgba(0,243,255,0.14)" }}>
+              <div style={{ color: "#999", fontSize: "0.7rem" }}>Cloud Entries</div>
+              <strong style={{ color: "var(--primary)", fontSize: "1.15rem" }}>{cloudSummary.entriesCount}</strong>
+            </div>
+            <div style={{ padding: "11px", borderRadius: "10px", background: "rgba(0,243,255,0.06)", border: "1px solid rgba(0,243,255,0.14)" }}>
+              <div style={{ color: "#999", fontSize: "0.7rem" }}>Settings</div>
+              <strong style={{ color: "#fff", fontSize: "0.9rem" }}>{cloudSummary.hasSettings ? "সংরক্ষিত" : "নেই"}</strong>
+            </div>
+          </div>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "9px" }}>
+            <button type="button" disabled={busy || !isLoaded} onClick={uploadLocalData} style={{ ...buttonStyle, gridColumn: "1 / -1", padding: "12px", background: "linear-gradient(135deg,#087f65,#00a98b)" }}>☁️ এই ডিভাইসের ডেটা Backup</button>
+            <button type="button" disabled={busy} onClick={restoreCloudData} style={{ ...buttonStyle, background: "#315b9b", fontSize: "0.8rem", padding: "10px 6px" }}>↓ Cloud Restore</button>
+            <button type="button" disabled={busy} onClick={refreshCloudSummary} style={{ ...buttonStyle, background: "#343b43", fontSize: "0.8rem", padding: "10px 6px" }}>↻ Status Refresh</button>
           </div>
         </>
       )}
       {status && <p role="status" aria-live="polite" style={{ color: status.includes("হয়নি") || status.includes("যায়নি") || status.includes("সম্পূর্ণ হয়নি") ? "#ffb4a8" : "#9fe8cb", fontSize: "0.82rem", lineHeight: 1.6, marginTop: "12px", overflowWrap: "anywhere" }}>{status}</p>}
-      <div style={{ marginTop: "14px", padding: "12px", background: "rgba(0,0,0,0.25)", borderRadius: "8px" }}>
-        <div style={{ color: "#45d6ad", fontWeight: "bold", marginBottom: "6px" }}>🆔 Local Device ID</div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
-          <strong style={{ color: "#fff", fontSize: "1.2rem", letterSpacing: "3px" }}>{!isLoaded ? "......" : (uid || "Unavailable")}</strong>
-          <button type="button" onClick={copyUid} disabled={!uid} style={{ ...buttonStyle, padding: "8px 11px" }}>Copy ID</button>
+      <details style={{ marginTop: "14px", paddingTop: "11px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <summary style={{ color: "#9baeb2", fontSize: "0.76rem", cursor: "pointer" }}>অতিরিক্ত তথ্য · Local Device ID</summary>
+        <div style={{ marginTop: "10px", padding: "11px", background: "rgba(0,0,0,0.22)", borderRadius: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "var(--primary)", fontSize: "0.72rem", marginBottom: "5px" }}>Local Device ID</div>
+              <strong style={{ color: "#fff", fontSize: "0.95rem", letterSpacing: "2px", overflowWrap: "anywhere" }}>{!isLoaded ? "......" : (uid || "Unavailable")}</strong>
+            </div>
+            <button type="button" onClick={copyUid} disabled={!uid} style={{ ...buttonStyle, padding: "8px 10px", fontSize: "0.75rem", flexShrink: 0 }}>Copy ID</button>
+          </div>
+          <p style={{ color: "#999", fontSize: "0.7rem", lineHeight: 1.5, margin: "8px 0 0" }}>এই Local ID একা Account Recovery Key নয়। নিয়মিত JSON Backup রাখুন।</p>
         </div>
-        <p style={{ color: "#999", fontSize: "0.72rem", marginTop: "8px" }}>এই Local ID একা Account Recovery Key নয়। নিয়মিত JSON Backup রাখুন।</p>
-      </div>
+      </details>
     </div>
   );
 }
