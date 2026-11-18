@@ -64,24 +64,11 @@ export function AppProvider({ children }) {
           } catch { console.warn("Saved entries could not be parsed; keeping an empty list."); }
         }
 
-        let permanentUid = savedUid && /^[A-Z0-9]{6}$/i.test(savedUid)
+        // Until secure account authentication is available, keep identity local-only.
+        // A six-character local identifier is NOT an account credential or cloud recovery key.
+        const permanentUid = savedUid && /^[A-Z0-9]{6}$/i.test(savedUid)
           ? savedUid.toUpperCase()
-          : null;
-
-        try {
-          const response = await fetch("/api/uid", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(permanentUid ? { uid: permanentUid } : {}),
-            cache: "no-store",
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || "UID service unavailable");
-          permanentUid = result.uid;
-        } catch (error) {
-          console.warn("UID server registration pending:", error.message);
-          if (!permanentUid) permanentUid = makeLocalUid();
-        }
+          : makeLocalUid();
 
         if (active && permanentUid) {
           localStorage.setItem("my_ot_uid", permanentUid);
@@ -112,9 +99,57 @@ export function AppProvider({ children }) {
   const deleteEntry = (id) => setEntries((prev) => prev.filter((entry) => entry.id !== id));
 
   const importBackupData = (data) => {
-    if (!data || data.app !== "My Overtime" || !data.settings || !Array.isArray(data.entries)) {
-      return { success: false, message: "ব্যাকআপ ফাইলটি সঠিক নয়।" };
+    const allowedTypes = new Set([
+      "work", "friday-off", "leave", "eid-bonus", "earned-leave"
+    ]);
+
+    const isValidDate = (value) => {
+      if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day;
+    };
+
+    const isValidNumber = (value) =>
+      value === undefined || value === null || value === "" ||
+      (Number.isFinite(Number(value)) && Math.abs(Number(value)) <= 1000000000);
+
+    if (
+      !data ||
+      typeof data !== "object" ||
+      Array.isArray(data) ||
+      data.app !== "My Overtime" ||
+      !data.settings ||
+      typeof data.settings !== "object" ||
+      Array.isArray(data.settings) ||
+      !Array.isArray(data.entries) ||
+      data.entries.length > 100000
+    ) {
+      return { success: false, message: "ব্যাকআপ ফাইলের কাঠামো সঠিক নয়।" };
     }
+
+    for (const entry of data.entries) {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        Array.isArray(entry) ||
+        !isValidDate(entry.date) ||
+        (entry.type !== undefined && !allowedTypes.has(entry.type)) ||
+        !isValidNumber(entry.ot) ||
+        !isValidNumber(entry.friday) ||
+        !isValidNumber(entry.amount) ||
+        (entry.tiffin !== undefined && typeof entry.tiffin !== "boolean") ||
+        (entry.night !== undefined && typeof entry.night !== "boolean")
+      ) {
+        return {
+          success: false,
+          message: "ব্যাকআপে ভুল বা অসম্পূর্ণ Entry পাওয়া গেছে। বর্তমান ডেটা অপরিবর্তিত আছে।"
+        };
+      }
+    }
+
     setSettings({ ...initialSettings, ...data.settings });
     setEntries(data.entries);
     return { success: true, message: "ডেটা পুনরুদ্ধার হয়েছে।" };
@@ -122,17 +157,8 @@ export function AppProvider({ children }) {
 
   const clearData = () => { setSettings(initialSettings); setEntries([]); };
 
-  // Adopt a restored account UID and keep it on this device.
-  const adoptUid = (value) => {
-    const nextUid = String(value || "").trim().toUpperCase();
-    if (!/^[A-Z0-9]{6}$/.test(nextUid)) return false;
-    localStorage.setItem("my_ot_uid", nextUid);
-    setUid(nextUid);
-    return true;
-  };
-
   return (
-    <AppContext.Provider value={{ settings, setSettings, entries, uid, isLoaded, addEntry, deleteEntry, importBackupData, clearData, showDialog, adoptUid }}>
+    <AppContext.Provider value={{ settings, setSettings, entries, uid, isLoaded, addEntry, deleteEntry, importBackupData, clearData, showDialog }}>
       {children}
       <CustomDialog {...dialog} />
     </AppContext.Provider>

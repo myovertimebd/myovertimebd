@@ -21,6 +21,7 @@ export default function PWAInstallPrompt() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
+      const deviceOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent) ? "ios" : "android";
       alert(deviceOS === "ios"
         ? "Safari-এর Share বাটনে চাপুন, তারপর Add to Home Screen নির্বাচন করুন।"
         : "Chrome-এর ⋮ মেনু খুলে Install app অথবা Add to Home screen নির্বাচন করুন।");

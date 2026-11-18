@@ -7,7 +7,7 @@ export default function ServiceWorkerRegister() {
     if (!("serviceWorker" in navigator)) return;
     const register = async () => {
       try {
-        const registration = await navigator.serviceWorker.register("/sw.js?v=200", { scope: "/" });
+        const registration = await navigator.serviceWorker.register("/sw.js?v=201", { scope: "/" });
         await registration.update();
       } catch (error) {
         console.error("Service worker registration failed:", error);

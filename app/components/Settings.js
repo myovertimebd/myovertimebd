@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAppContext } from "../AppContext";
 import CloudBackup from "./CloudBackup";
 
 export default function Settings() {
-  const { settings, setSettings, entries, importBackupData, clearData, showDialog } = useAppContext();
-  
+  const context = useAppContext();
+  if (!context.isLoaded) return null;
+  return <SettingsForm key={JSON.stringify(context.settings)} context={context} />;
+}
+
+function SettingsForm({ context }) {
+  const { settings, setSettings, entries, importBackupData, clearData, showDialog } = context;
+
   const [formData, setFormData] = useState({
     name: settings.name || "",
     floor: settings.floor || "",
@@ -17,19 +23,6 @@ export default function Settings() {
     savingsGoal: settings.savingsGoal || 10,
     holidayMultiplier: settings.holidayMultiplier || 2.0,
   });
-
-  useEffect(() => {
-    setFormData({
-      name: settings.name || "",
-      floor: settings.floor || "",
-      gross: settings.gross || 0,
-      bonus: settings.bonus || 0,
-      tiffinRate: settings.tiffinRate || 30,
-      nightRate: settings.nightRate || 50,
-      savingsGoal: settings.savingsGoal || 10,
-      holidayMultiplier: settings.holidayMultiplier || 2.0,
-    });
-  }, [settings]);
 
 
 
@@ -44,7 +37,9 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `my-overtime-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    link.download = `my-overtime-backup-${localDate}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -103,7 +98,7 @@ export default function Settings() {
     <section className="view active animate-fade-in pb-24">
       <div className="page-title">Settings</div>
       
-      <form className="glass-form" onSubmit={e => e.preventDefault()}>
+      <div className="glass-form">
         <div className="section-label" style={{ marginBottom: "10px", color: "var(--primary)", fontWeight: "bold", textTransform: "uppercase" }}>Auto Salary Calculator (Gazette 2023)</div>
         
         <div className="glass-card p-3" style={{ background: "rgba(30, 30, 30, 0.9)", border: "1px solid #444", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
@@ -197,7 +192,7 @@ export default function Settings() {
 
         <div className="glass-card p-3" style={{ background: "rgba(0, 70, 255, 0.1)", border: "1px solid rgba(0, 100, 255, 0.3)", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
           <div style={{ color: "#4a9eff", marginBottom: "10px", fontWeight: "bold" }}><i className="ri-shield-check-line"></i> Data Backup & Restore</div>
-          <p style={{ fontSize: "0.82rem", color: "#ccc", marginBottom: "12px", lineHeight: 1.6 }}>এই সংস্করণে ডেটা ফোনের মধ্যেই সেভ হয়। ফোন বদলানোর আগে নিয়মিত ব্যাকআপ ডাউনলোড করে রাখুন। পরে নতুন অ্যাকাউন্ট ও ক্লাউড সিঙ্ক যুক্ত হবে।</p>
+          <p style={{ fontSize: "0.82rem", color: "#ccc", marginBottom: "12px", lineHeight: 1.6 }}>ডেটা এই ডিভাইসে Local Storage-এ থাকে। নিরাপত্তার জন্য নিয়মিত JSON Backup ডাউনলোড করে রাখুন। Email OTP দিয়ে লগইন করার পর নিচের Cloud Backup অংশ থেকে নিজের অ্যাকাউন্টে ডেটা আপলোড বা Restore করতে পারবেন।</p>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button type="button" onClick={handleExportBackup} style={{ flex: 1, minWidth: "130px", background: "#2563eb", color: "#fff", border: 0, padding: "11px", borderRadius: "8px", fontWeight: 700 }}>ডেটা Backup</button>
             <label style={{ flex: 1, minWidth: "130px", textAlign: "center", background: "#333", color: "#fff", padding: "11px", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Backup Restore<input type="file" accept="application/json,.json" onChange={handleImportBackup} style={{ display: "none" }} /></label>
@@ -232,7 +227,7 @@ export default function Settings() {
            </button>
         </div>
 
-      </form>
+      </div>
     </section>
   );
 }

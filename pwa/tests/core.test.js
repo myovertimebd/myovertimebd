@@ -1,0 +1,13 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {salary,monthKey,dateKey,validDate,cleanState,escapeHTML,csvCell,save,load,STORAGE_KEY} from "../src/core.js";
+test("salary OT calculation uses basic/divisor times multiplier",()=>{const r=salary({gross:15000,basic:7500,divisor:208,multiplier:2,otHours:10,allowance:500,bonus:1000,deductions:250});assert.equal(r.rate,7500/208*2);assert.equal(r.ot,7500/208*20);assert.equal(r.total,15000+r.ot+500+1000-250);});
+test("negative values are clamped to zero",()=>{const r=salary({gross:-10,basic:5000,otHours:-2,allowance:-9});assert.equal(r.gross,0);assert.equal(r.ot,0);assert.equal(r.allowance,0);});
+test("Dhaka month boundary is respected",()=>assert.equal(monthKey(new Date("2026-01-31T19:00:00Z")),"2026-02"));
+test("Dhaka date is correct at UTC boundary",()=>assert.equal(dateKey(new Date("2026-01-01T19:00:00Z")),"2026-01-02"));
+test("date validator rejects impossible dates",()=>{assert.equal(validDate("2026-02-28"),true);assert.equal(validDate("2026-02-30"),false);});
+test("restore validator rejects malformed records",()=>assert.throws(()=>cleanState({work:[{date:"2026-02-30"}]})));
+test("restore normalizes and bounds record values",()=>{const s=cleanState({work:[{date:"2026-02-28",hours:99,ot:30}],transactions:[],goals:[]});assert.equal(s.work[0].hours,24);assert.equal(s.work[0].ot,24);});
+test("HTML escaping works",()=>assert.equal(escapeHTML(`<b>"x"</b>`),"&lt;b&gt;&quot;x&quot;&lt;/b&gt;"));
+test("CSV formula injection is neutralized",()=>assert.equal(csvCell("=1+1"),`"'=1+1"`));
+test("local storage save/load round trip",()=>{const m=new Map(),store={getItem:k=>m.get(k),setItem:(k,v)=>m.set(k,v)};const s=cleanState({profile:{gross:123},work:[],transactions:[],goals:[]});assert.equal(save(s,store),true);assert.equal(load(store).profile.gross,123);assert.equal(m.has(STORAGE_KEY),true);});

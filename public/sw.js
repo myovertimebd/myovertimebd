@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-overtime-v2.0.0';
+const CACHE_NAME = 'my-overtime-v2.0.1';
 const NEW_HOME = new URL('/', self.location.origin).href;
 const PRECACHE_ASSETS = [
   '/',
