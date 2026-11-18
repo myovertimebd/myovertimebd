@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAppContext } from "../AppContext";
 import CloudBackup from "./CloudBackup";
+import { calculateGazette2023 } from "../lib/salary-calculator.mjs";
 
 export default function Settings() {
   const context = useAppContext();
@@ -62,16 +63,16 @@ function SettingsForm({ context }) {
   };
 
   const calculateBreakdown = () => {
-    const gross = parseFloat(formData.gross) || 0;
-    const fixed = 750 + 450 + 1250;
-    let core = gross - fixed;
-    if (core < 0) core = 0;
-    
-    const basic = Math.ceil(core / 1.5);
-    const house = Math.round(core - basic);
-    const rate = (basic / 208) * 2;
-    
-    return { basic, house, rate, medical: 750, transport: 450, food: 1250 };
+    const result = calculateGazette2023(formData.gross);
+
+    return {
+      basic: result.basic,
+      house: result.house,
+      rate: result.hourlyRate,
+      medical: result.medical,
+      transport: result.transport,
+      food: result.food,
+    };
   };
 
   const currentVars = calculateBreakdown();
